@@ -1,39 +1,44 @@
-# Notion Sync Combined
+# Database Sync
 
-A unified repository containing sync scripts for GitHub, Oura, and Strava data to Notion.
+A comprehensive data synchronization tool that collects activity data from multiple services and syncs it to Notion databases.
 
 ## Overview
 
-This repository combines three previously separate sync tools:
+This repository contains sync scripts for collecting and storing data from various services into Notion databases:
 
-- **GitHub Activity Sync**: Collects PR and commit activity
-- **Oura Sleep Sync**: Collects sleep data and patterns
-- **Strava Workout Sync**: Collects workout and activity data
+- **GitHub Activity Sync**: Collects PR and commit activity from GitHub repositories
+- **Oura Sleep Sync**: Collects sleep data and patterns from Oura Ring
+- **Strava Workout Sync**: Collects workout and activity data from Strava
+- **GPX Upload Utility**: Uploads GPX files to Notion (for Strava activities)
+- **Steam & Withings**: Placeholder scripts for future integrations
 
-## Structure
+## Project Structure
 
 ```
-combined-sync/
-├── scripts/
-│   ├── collect-github.js    # GitHub activity collection
-│   ├── collect-oura.js      # Oura sleep data collection
-│   ├── collect-strava.js    # Strava workout collection
-│   └── upload-gpx.js        # GPX file upload utility
+database-sync/
+├── collect-github.js      # GitHub activity collection
+├── collect-oura.js        # Oura sleep data collection
+├── collect-strava.js      # Strava workout collection
+├── collect-steam.js       # Steam data collection (placeholder)
+├── collect-withings.js    # Withings data collection (placeholder)
+├── upload-gpx.js          # GPX file upload utility
+├── test-requires.js       # Dependency testing utility
 ├── lib/
-│   ├── clients/             # API clients for each service
+│   ├── clients/           # API clients for each service
 │   │   ├── github-client.js
 │   │   ├── oura-client.js
 │   │   └── strava-client.js
-│   ├── notion/              # Notion integration clients
+│   ├── notion/            # Notion integration clients
 │   │   ├── github-notion-client.js
 │   │   ├── oura-notion-client.js
 │   │   └── strava-notion-client.js
-│   └── utils/               # Utility functions
+│   └── utils/             # Utility functions
 │       ├── github-cli-utils.js
 │       ├── github-week-utils.js
 │       ├── oura-week-utils.js
 │       └── strava-week-utils.js
-└── package.json
+├── package.json
+└── README.md
 ```
 
 ## Installation
@@ -43,49 +48,75 @@ combined-sync/
    ```bash
    npm install
    ```
-3. Copy your `.env` file from one of the original repos and merge any additional environment variables needed
+3. Set up your environment variables (see Environment Variables section below)
 
 ## Usage
 
 ### GitHub Activity Sync
 
+Collects GitHub activity (commits, PRs) from specified repositories:
+
 ```bash
 npm run github
 # or
-node scripts/collect-github.js
+node collect-github.js
 ```
 
+**Features:**
+
+- Single day or week-based collection
+- Configurable repository list in the script
+- EST/UTC timezone handling
+- Interactive date selection
+
 ### Oura Sleep Sync
+
+Collects sleep data from Oura Ring:
 
 ```bash
 npm run oura
 # or
-node scripts/collect-oura.js
+node collect-oura.js
 ```
 
+**Features:**
+
+- Single night or week-based collection
+- "Night of" date calculation (Oura API uses next day)
+- Sleep session processing and transformation
+
 ### Strava Workout Sync
+
+Collects workout and activity data from Strava:
 
 ```bash
 npm run strava
 # or
-node scripts/collect-strava.js
+node collect-strava.js
 ```
 
+**Features:**
+
+- Single day or week-based collection
+- Activity filtering and processing
+- GPX file support for detailed workout data
+
 ### GPX Upload Utility
+
+Uploads GPX files to Notion for Strava activities:
 
 ```bash
 npm run upload-gpx
 # or
-node scripts/upload-gpx.js
+node upload-gpx.js
 ```
 
 ## Environment Variables
 
-You'll need to set up environment variables for each service. Here's a template:
+Create a `.env` file in the project root with the following variables:
 
 ```env
 # Notion (required for all services)
-# Note: NOTION_TOKEN and NOTION_DATABASE_ID are specifically for GitHub activity data
 NOTION_TOKEN=your_notion_token
 NOTION_DATABASE_ID=your_database_id
 
@@ -99,33 +130,66 @@ OURA_TOKEN=your_oura_token
 STRAVA_CLIENT_ID=your_strava_client_id
 STRAVA_CLIENT_SECRET=your_strava_client_secret
 STRAVA_REFRESH_TOKEN=your_strava_refresh_token
-
-# Google Calendar (optional, used by some scripts)
-GOOGLE_APPLICATION_CREDENTIALS=path_to_credentials.json
 ```
 
-## Migration from Individual Repos
+## Configuration
 
-This repository was created by combining three separate sync repositories:
+### GitHub Configuration
 
-- `sync-github/`
-- `sync-oura/`
-- `sync-strava/`
+Edit `collect-github.js` to specify which repositories to monitor:
 
-All functionality has been preserved, with updated require paths to work within the new structure.
+```javascript
+const github = new GitHubClient({
+  workRepos: ["cortexapps/brain-app"], // Add more repos here
+});
+```
+
+### Date Selection
+
+All scripts support two selection methods:
+
+1. **Single Day**: Enter a specific date in DD-MM-YY format
+2. **Week Selection**: Choose a week number (1-52) for the year
 
 ## Dependencies
 
 - `@notionhq/client`: Notion API integration
 - `dotenv`: Environment variable management
-- `googleapis`: Google Calendar integration
 - `inquirer`: CLI prompts
 - `node-fetch`: HTTP requests
 - `xml2js`: XML parsing (for GPX files)
 
+## Development
+
+### Testing Dependencies
+
+Run the test script to verify all required modules are available:
+
+```bash
+node test-requires.js
+```
+
+### Adding New Services
+
+To add a new service:
+
+1. Create a client in `lib/clients/`
+2. Create a Notion client in `lib/notion/`
+3. Create utility functions in `lib/utils/`
+4. Create a collection script in the root directory
+5. Add the script to `package.json` scripts
+
 ## Notes
 
 - Each script can be run independently
-- All scripts maintain their original functionality
-- Environment variables need to be merged from the original repos
-- The original repos are preserved as backups
+- All scripts include connection testing before execution
+- Interactive prompts guide users through date selection
+- Timezone handling is built-in for accurate data collection
+- Placeholder scripts exist for Steam and Withings integrations
+
+## Troubleshooting
+
+1. **Connection Issues**: Verify your environment variables are set correctly
+2. **Date Selection**: Ensure dates are in the correct format (DD-MM-YY)
+3. **No Data Found**: Check that the selected date range contains activity data
+4. **API Limits**: Be aware of rate limits for each service's API
