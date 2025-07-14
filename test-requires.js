@@ -21,7 +21,14 @@ try {
   const StravaWeekUtils = require("./lib/utils/strava-week-utils.js");
   console.log("✅ Strava requires work");
 
+  // Test Withings requires
+  const WithingsClient = require("./lib/clients/withings-client.js");
+  const WithingsNotionClient = require("./lib/notion/withings-notion-client.js");
+  const WithingsWeekUtils = require("./lib/utils/withings-week-utils.js");
+  console.log("✅ Withings requires work");
+
   console.log("\n🎉 All require paths are working correctly!");
+  process.exit(0);
 } catch (error) {
   console.error("❌ Error testing requires:", error.message);
   process.exit(1);
