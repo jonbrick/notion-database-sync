@@ -1,0 +1,30 @@
+{
+  "name": "notion-sync-combined",
+  "version": "1.0.0",
+  "description": "Combined sync scripts for GitHub, Oura, and Strava data to Notion",
+  "main": "index.js",
+  "scripts": {
+    "github": "node scripts/collect-github.js",
+    "oura": "node scripts/collect-oura.js",
+    "strava": "node scripts/collect-strava.js",
+    "upload-gpx": "node scripts/upload-gpx.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "notion",
+    "sync",
+    "github",
+    "oura",
+    "strava"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@notionhq/client": "^3.1.3",
+    "dotenv": "^16.5.0",
+    "googleapis": "^150.0.1",
+    "inquirer": "^12.6.3",
+    "node-fetch": "^2.7.0",
+    "xml2js": "^0.6.2"
+  }
+}
