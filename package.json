@@ -7,6 +7,8 @@
     "github": "node scripts/collect-github.js",
     "oura": "node scripts/collect-oura.js",
     "strava": "node scripts/collect-strava.js",
+    "steam": "node scripts/collect-steam.js",
+    "withings": "node scripts/collect-withings.js",
     "upload-gpx": "node scripts/upload-gpx.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
