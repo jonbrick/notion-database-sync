@@ -6,6 +6,7 @@ A comprehensive data synchronization tool that collects activity data from multi
 
 This repository contains sync scripts for collecting and storing data from various services into Notion databases:
 
+- **🌟 Unified Daily Collector**: One command to collect from all services for any date
 - **GitHub Activity Sync**: Collects PR and commit activity from GitHub repositories
 - **Oura Sleep Sync**: Collects sleep data and patterns from Oura Ring
 - **Strava Workout Sync**: Collects workout and activity data from Strava
@@ -17,6 +18,7 @@ This repository contains sync scripts for collecting and storing data from vario
 
 ```
 database-sync/
+├── collect-day.js         # 🌟 Unified daily collector (all services)
 ├── collect-github.js      # GitHub activity collection
 ├── collect-oura.js        # Oura sleep data collection
 ├── collect-strava.js      # Strava workout collection
@@ -60,6 +62,38 @@ database-sync/
 
 ## Usage
 
+### Unified Daily Collection (Recommended)
+
+The easiest way to collect data from all services for a single date:
+
+```bash
+# Collect all data for yesterday
+node collect-day.js yesterday
+
+# Collect all data for a specific date
+node collect-day.js 15-12-24
+
+# Collect all data for today (default)
+node collect-day.js
+
+# See all options
+node collect-day.js --help
+```
+
+**Features:**
+
+- ✅ **Cross-platform** - Works on Windows, macOS, Linux
+- ✅ **Natural date parsing** - Use "yesterday", "today", "tomorrow"
+- ✅ **Error resilience** - Continues if one service fails
+- ✅ **Progress tracking** - Clear status for each service
+- ✅ **Confirmation step** - Shows date and day of week before proceeding
+
+This single command runs all 5 collectors (GitHub, Oura, Steam, Strava, Withings) for the specified date.
+
+### Individual Service Collection
+
+You can also run each service individually:
+
 ### GitHub Activity Sync
 
 Collects GitHub activity (commits, PRs) from specified repositories:
@@ -68,6 +102,8 @@ Collects GitHub activity (commits, PRs) from specified repositories:
 npm run github
 # or
 node collect-github.js
+# or with specific date
+node collect-github.js 15-12-24
 ```
 
 **Features:**
@@ -85,6 +121,8 @@ Collects sleep data from Oura Ring:
 npm run oura
 # or
 node collect-oura.js
+# or with specific date
+node collect-oura.js 15-12-24
 ```
 
 **Features:**
@@ -101,6 +139,8 @@ Collects workout and activity data from Strava:
 npm run strava
 # or
 node collect-strava.js
+# or with specific date
+node collect-strava.js 15-12-24
 ```
 
 **Features:**
@@ -117,6 +157,8 @@ Collects gaming activity data from Steam via custom Lambda API:
 npm run steam
 # or
 node collect-steam.js
+# or with specific date
+node collect-steam.js 15-12-24
 ```
 
 **Features:**
@@ -135,6 +177,8 @@ Collects body measurement data from Withings scales:
 npm run withings
 # or
 node collect-withings.js
+# or with specific date
+node collect-withings.js 15-12-24
 ```
 
 **Features:**
@@ -232,10 +276,20 @@ The Steam sync uses a custom Lambda API endpoint. The URL can be configured via 
 
 ### Date Selection
 
-All scripts support two selection methods:
+All scripts support multiple input methods:
 
-1. **Single Day**: Enter a specific date in DD-MM-YY format
-2. **Week Selection**: Choose a week number (1-52) for the year
+**Unified Collector:**
+
+- `node collect-day.js yesterday` - Natural language
+- `node collect-day.js 15-12-24` - Specific date (DD-MM-YY)
+- `node collect-day.js` - Defaults to today
+
+**Individual Scripts:**
+
+- **CLI Mode**: `node collect-github.js 15-12-24` - Direct date argument
+- **Interactive Mode**: `node collect-github.js` - Prompts for date/week selection
+  1. **Single Day**: Enter a specific date in DD-MM-YY format
+  2. **Week Selection**: Choose a week number (1-52) for the year
 
 ## Notion Database Setup
 
@@ -285,9 +339,10 @@ To add a new service:
 
 ## Notes
 
-- Each script can be run independently
+- **Recommended**: Use `node collect-day.js yesterday` for daily data collection
+- Each script can also be run independently with CLI arguments: `node collect-github.js 15-12-24`
 - All scripts include connection testing before execution
-- Interactive prompts guide users through date selection
+- Both interactive and non-interactive modes supported
 - Timezone handling is built-in for accurate data collection
 - Deduplication is supported to avoid duplicate entries
 
