@@ -48,6 +48,7 @@ async function main() {
 
   let weekStart, weekEnd;
   let selectedWeekNumber;
+  let weekNumbers;
 
   if (selectionMethod === "1") {
     // Date-based selection
@@ -82,24 +83,56 @@ async function main() {
     console.log(`  52 - ${weeks[51].label}\n`);
 
     const weekInput = await askQuestion(
-      "? Which week to collect? (enter week number): "
+      "? Which week(s) to collect? (enter week number or comma-separated list, e.g., '1' or '1,10,11'): "
     );
-    const weekNumber = parseInt(weekInput);
 
-    if (weekNumber < 1 || weekNumber > 52) {
-      console.log("❌ Invalid week number");
+    // Parse comma-separated week numbers
+    weekNumbers = weekInput
+      .split(",")
+      .map((w) => parseInt(w.trim()))
+      .filter((w) => !isNaN(w));
+
+    if (weekNumbers.length === 0) {
+      console.log("❌ No valid week numbers provided");
       process.exit(1);
     }
 
-    selectedWeekNumber = weekNumber;
-    const boundaries = getWeekBoundaries(2025, weekNumber);
-    weekStart = boundaries.weekStart;
-    weekEnd = boundaries.weekEnd;
+    // Validate all week numbers
+    for (const weekNumber of weekNumbers) {
+      if (weekNumber < 1 || weekNumber > 52) {
+        console.log(`❌ Invalid week number: ${weekNumber}`);
+        process.exit(1);
+      }
+    }
 
-    console.log(`\n📊 Week ${weekNumber} Selected`);
-    console.log(
-      `📅 Date range: ${weekStart.toDateString()} - ${weekEnd.toDateString()}\n`
-    );
+    // For multiple weeks, calculate the overall date range
+    if (weekNumbers.length === 1) {
+      selectedWeekNumber = weekNumbers[0];
+      const boundaries = getWeekBoundaries(2025, selectedWeekNumber);
+      weekStart = boundaries.weekStart;
+      weekEnd = boundaries.weekEnd;
+
+      console.log(`\n📊 Week ${selectedWeekNumber} Selected`);
+      console.log(
+        `📅 Date range: ${weekStart.toDateString()} - ${weekEnd.toDateString()}\n`
+      );
+    } else {
+      // Multiple weeks - find the earliest start and latest end
+      const sortedWeeks = [...weekNumbers].sort((a, b) => a - b);
+      const firstWeekBoundaries = getWeekBoundaries(2025, sortedWeeks[0]);
+      const lastWeekBoundaries = getWeekBoundaries(
+        2025,
+        sortedWeeks[sortedWeeks.length - 1]
+      );
+
+      weekStart = firstWeekBoundaries.weekStart;
+      weekEnd = lastWeekBoundaries.weekEnd;
+
+      console.log(`\n📊 Multiple Weeks Selected: ${weekNumbers.join(", ")}`);
+      console.log(
+        `📅 Date range: ${weekStart.toDateString()} - ${weekEnd.toDateString()}\n`
+      );
+    }
   } else {
     console.log("❌ Invalid option. Please choose 1 or 2.");
     process.exit(1);
@@ -112,11 +145,15 @@ async function main() {
     console.log(`📊 Single day operation`);
     console.log(`📅 Date: ${weekStart.toDateString()}`);
   } else {
-    console.log(
-      `📊 Total days: ${Math.ceil(
-        (weekEnd - weekStart) / (1000 * 60 * 60 * 24)
-      )} days`
-    );
+    const totalDays = Math.ceil((weekEnd - weekStart) / (1000 * 60 * 60 * 24));
+    console.log(`📊 Total days: ${totalDays} days`);
+
+    if (weekNumbers && weekNumbers.length > 1) {
+      console.log(`📊 Weeks: ${weekNumbers.join(", ")}`);
+    } else if (selectedWeekNumber) {
+      console.log(`📊 Week: ${selectedWeekNumber}`);
+    }
+
     console.log(
       `📅 Date range: ${weekStart.toDateString()} - ${weekEnd.toDateString()}`
     );
@@ -194,9 +231,15 @@ async function main() {
 
   // Show summary of what was processed
   if (selectionMethod === "2") {
-    console.log(
-      `📅 Week ${selectedWeekNumber}: ${weekStart.toDateString()} - ${weekEnd.toDateString()}`
-    );
+    if (weekNumbers && weekNumbers.length > 1) {
+      console.log(
+        `📅 Weeks ${weekNumbers.join(", ")}: ${weekStart.toDateString()} - ${weekEnd.toDateString()}`
+      );
+    } else {
+      console.log(
+        `📅 Week ${selectedWeekNumber}: ${weekStart.toDateString()} - ${weekEnd.toDateString()}`
+      );
+    }
   } else {
     console.log(`📅 Date: ${weekStart.toDateString()}`);
   }
