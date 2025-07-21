@@ -9,11 +9,41 @@ const {
   askQuestion,
 } = require("./lib/utils/github-cli-utils.js");
 
+// Check for CLI arguments for non-interactive mode
+const args = process.argv.slice(2);
+const isNonInteractive = args.length > 0;
+const cliDateInput = args[0];
+
 // Create clients
 const github = new GitHubClient({
   workRepos: ["cortexapps/brain-app"], // Add more repos here as needed: ["cortexapps/brain-app", "cortexapps/other-repo"]
 });
 const notion = new NotionClient();
+
+// Function to parse DD-MM-YY date format
+function parseDateDDMMYY(dateString) {
+  const dateRegex = /^(\d{1,2})-(\d{1,2})-(\d{2})$/;
+  const match = dateString.match(dateRegex);
+
+  if (!match) {
+    throw new Error("Invalid format. Please use DD-MM-YY (e.g., 15-03-25)");
+  }
+
+  const [, day, month, year] = match;
+  const fullYear = 2000 + parseInt(year);
+  const date = new Date(fullYear, parseInt(month) - 1, parseInt(day));
+
+  // Check if the date is valid
+  if (
+    date.getFullYear() !== fullYear ||
+    date.getMonth() !== parseInt(month) - 1 ||
+    date.getDate() !== parseInt(day)
+  ) {
+    throw new Error("Invalid date. Please check day, month, and year.");
+  }
+
+  return date;
+}
 
 async function main() {
   console.log("🔨 GitHub Activity Collector 2025\n");
@@ -21,51 +51,81 @@ async function main() {
   // Test connections
   await testConnections({ github, notion });
 
-  // Get date selection
-  const { weekStart, weekEnd, dateRangeLabel, selectedDate, optionInput } =
-    await getDateSelection();
+  let weekStart, weekEnd, dateRangeLabel, selectedDate, optionInput;
+
+  if (isNonInteractive) {
+    // Non-interactive mode with CLI argument
+    try {
+      selectedDate = parseDateDDMMYY(cliDateInput);
+      optionInput = "1"; // Force single day mode
+      dateRangeLabel = `Date: ${selectedDate.toDateString()}`;
+
+      console.log(
+        `📊 Collecting GitHub activity for Date ${selectedDate.toDateString()} (Eastern)`
+      );
+      console.log(`📅 Eastern Date: ${selectedDate.toDateString()}`);
+      console.log(
+        `📱 GitHub Date (UTC): ${selectedDate.toDateString()} (${
+          selectedDate.toISOString().split("T")[0]
+        })\n`
+      );
+    } catch (error) {
+      console.error(`❌ ${error.message}`);
+      process.exit(1);
+    }
+  } else {
+    // Interactive mode (original behavior)
+    const dateSelection = await getDateSelection();
+    weekStart = dateSelection.weekStart;
+    weekEnd = dateSelection.weekEnd;
+    dateRangeLabel = dateSelection.dateRangeLabel;
+    selectedDate = dateSelection.selectedDate;
+    optionInput = dateSelection.optionInput;
+  }
 
   if (optionInput === "1") {
-    console.log(
-      `\n📊 Collecting GitHub activity for Date ${selectedDate.toDateString()} (Eastern)`
-    );
-    console.log(`📅 Eastern Date: ${selectedDate.toDateString()}`);
-    console.log(
-      `📱 GitHub Date (UTC): ${selectedDate.toDateString()} (${
-        selectedDate.toISOString().split("T")[0]
-      })\n`
-    );
+    if (!isNonInteractive) {
+      console.log(
+        `\n📊 Collecting GitHub activity for Date ${selectedDate.toDateString()} (Eastern)`
+      );
+      console.log(`📅 Eastern Date: ${selectedDate.toDateString()}`);
+      console.log(
+        `📱 GitHub Date (UTC): ${selectedDate.toDateString()} (${
+          selectedDate.toISOString().split("T")[0]
+        })\n`
+      );
 
-    console.log("📋 Summary:");
-    console.log("📊 Single day operation");
-    console.log(`📅 Eastern Date: ${selectedDate.toDateString()}`);
-    console.log(
-      `📱 GitHub Date (UTC): ${selectedDate.toDateString()} (${
-        selectedDate.toISOString().split("T")[0]
-      })\n`
-    );
+      console.log("📋 Summary:");
+      console.log("📊 Single day operation");
+      console.log(`📅 Eastern Date: ${selectedDate.toDateString()}`);
+      console.log(
+        `📱 GitHub Date (UTC): ${selectedDate.toDateString()} (${
+          selectedDate.toISOString().split("T")[0]
+        })\n`
+      );
 
-    const searchRange = calculateSearchRange(selectedDate);
-    console.log("🔍 Search Details:");
-    console.log(`   EST date requested: ${selectedDate.toDateString()}`);
-    console.log(
-      `   EST day boundaries: ${searchRange.estStartOfDay.toLocaleString(
-        "en-US",
-        { timeZone: "America/New_York" }
-      )} to ${searchRange.estEndOfDay.toLocaleString("en-US", {
-        timeZone: "America/New_York",
-      })}`
-    );
-    console.log(
-      `   UTC search range: ${searchRange.startUTC.toISOString()} to ${searchRange.endUTC.toISOString()}\n`
-    );
+      const searchRange = calculateSearchRange(selectedDate);
+      console.log("🔍 Search Details:");
+      console.log(`   EST date requested: ${selectedDate.toDateString()}`);
+      console.log(
+        `   EST day boundaries: ${searchRange.estStartOfDay.toLocaleString(
+          "en-US",
+          { timeZone: "America/New_York" }
+        )} to ${searchRange.estEndOfDay.toLocaleString("en-US", {
+          timeZone: "America/New_York",
+        })}`
+      );
+      console.log(
+        `   UTC search range: ${searchRange.startUTC.toISOString()} to ${searchRange.endUTC.toISOString()}\n`
+      );
 
-    const proceed = await askQuestion(
-      "? Proceed with collecting GitHub activity for this period? (y/n): "
-    );
-    if (proceed.toLowerCase() !== "y") {
-      console.log("❌ Operation cancelled");
-      process.exit(0);
+      const proceed = await askQuestion(
+        "? Proceed with collecting GitHub activity for this period? (y/n): "
+      );
+      if (proceed.toLowerCase() !== "y") {
+        console.log("❌ Operation cancelled");
+        process.exit(0);
+      }
     }
 
     console.log(
@@ -76,32 +136,37 @@ async function main() {
       } for Date ${selectedDate.toDateString()} - ${selectedDate.toDateString()}`
     );
   } else {
-    console.log(`\n📊 Collecting GitHub activity for ${dateRangeLabel}`);
-    console.log(
-      `📅 Date range: ${weekStart.toDateString()} - ${weekEnd.toDateString()}\n`
-    );
+    if (!isNonInteractive) {
+      console.log(`\n📊 Collecting GitHub activity for ${dateRangeLabel}`);
+      console.log(
+        `📅 Date range: ${weekStart.toDateString()} - ${weekEnd.toDateString()}\n`
+      );
 
-    // Add confirmation step for week selection
-    const weekSearchRange = calculateWeekSearchRange(weekStart, weekEnd);
-    console.log("🔍 Search Details:");
-    console.log(`   Week requested: ${dateRangeLabel}`);
-    console.log(
-      `   EST week boundaries: ${weekStart.toDateString()} to ${weekEnd.toDateString()}`
-    );
-    console.log(
-      `   UTC search range: ${weekSearchRange.startUTC.toISOString()} to ${weekSearchRange.endUTC.toISOString()}\n`
-    );
+      // Add confirmation step for week selection
+      const weekSearchRange = calculateWeekSearchRange(weekStart, weekEnd);
+      console.log("🔍 Search Details:");
+      console.log(`   Week requested: ${dateRangeLabel}`);
+      console.log(
+        `   EST week boundaries: ${weekStart.toDateString()} to ${weekEnd.toDateString()}`
+      );
+      console.log(
+        `   UTC search range: ${weekSearchRange.startUTC.toISOString()} to ${weekSearchRange.endUTC.toISOString()}\n`
+      );
 
-    const proceed = await askQuestion(
-      "? Proceed with collecting GitHub activity for this period? (y/n): "
-    );
-    if (proceed.toLowerCase() !== "y") {
-      console.log("❌ Operation cancelled");
-      process.exit(0);
+      const proceed = await askQuestion(
+        "? Proceed with collecting GitHub activity for this period? (y/n): "
+      );
+      if (proceed.toLowerCase() !== "y") {
+        console.log("❌ Operation cancelled");
+        process.exit(0);
+      }
     }
   }
 
-  closeReadline();
+  // Don't call closeReadline in CLI mode to avoid hanging
+  if (!isNonInteractive) {
+    closeReadline();
+  }
 
   // Fetch activities from GitHub
   let activities;
@@ -165,11 +230,13 @@ async function main() {
   }
 
   if (optionInput === "1") {
-    console.log(
-      `🔄 Fetching GitHub activity from ${
-        selectedDate.toISOString().split("T")[0]
-      } to ${selectedDate.toISOString().split("T")[0]}`
-    );
+    if (!isNonInteractive) {
+      console.log(
+        `🔄 Fetching GitHub activity from ${
+          selectedDate.toISOString().split("T")[0]
+        } to ${selectedDate.toISOString().split("T")[0]}`
+      );
+    }
   }
 
   console.log(`🔨 Found ${activities.length} repositories with activity\n`);
@@ -186,16 +253,6 @@ async function main() {
       savedCount++;
 
       if (optionInput === "1") {
-        console.log(
-          `✅ Processing Eastern Date ${selectedDate.toDateString()} from GitHub Date ${
-            activity.date
-          }`
-        );
-        console.log(
-          `✅ Created GitHub record for Eastern Date: ${selectedDate.toDateString()} (GitHub Date: ${
-            activity.date
-          })`
-        );
         console.log(
           `✅ Saved Eastern ${selectedDate.toDateString()}: ${
             activity.repository

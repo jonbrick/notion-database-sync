@@ -8,15 +8,23 @@ const {
 } = require("./lib/utils/steam-week-utils.js");
 const readline = require("readline");
 
+// Check for CLI arguments for non-interactive mode
+const args = process.argv.slice(2);
+const isNonInteractive = args.length > 0;
+const cliDateInput = args[0];
+
 // Create clients
 const steam = new SteamClient();
 const notion = new NotionClient();
 
-// Create readline interface
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+// Create readline interface only if needed
+let rl;
+if (!isNonInteractive) {
+  rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+}
 
 function askQuestion(question) {
   return new Promise((resolve) => {
@@ -39,100 +47,119 @@ async function main() {
     process.exit(1);
   }
 
-  // Ask user for selection method
-  console.log("\n📅 Choose your selection method:");
-  console.log("  1. Enter a specific Date (DD-MM-YY format)");
-  console.log("  2. Select by week number");
+  let weekStart, weekEnd, selectedWeekNumber, selectionMethod;
 
-  const selectionMethod = await askQuestion("? Choose option (1 or 2): ");
-
-  let weekStart, weekEnd;
-  let selectedWeekNumber;
-
-  if (selectionMethod === "1") {
-    // Date-based selection
-    const dateInput = await askQuestion(
-      "? Enter Date in DD-MM-YY format (e.g., 15-03-25): "
-    );
-
+  if (isNonInteractive) {
+    // Non-interactive mode with CLI argument
     try {
-      const selectedDate = parseDateDDMMYY(dateInput);
+      const selectedDate = parseDateDDMMYY(cliDateInput);
       const boundaries = getSingleDayBoundaries(selectedDate);
       weekStart = boundaries.dayStart;
       weekEnd = boundaries.dayEnd;
+      selectionMethod = "1"; // Force single day mode
 
       console.log(
-        `\n📊 Collecting gaming data for ${selectedDate.toDateString()}`
+        `📊 Collecting gaming data for ${selectedDate.toDateString()}`
       );
       console.log(`🎮 Date: ${selectedDate.toDateString()}\n`);
     } catch (error) {
-      console.log(`❌ ${error.message}`);
+      console.error(`❌ ${error.message}`);
       process.exit(1);
     }
-  } else if (selectionMethod === "2") {
-    // Week-based selection
-    console.log("\n📅 Available weeks:");
-    const weeks = generateWeekOptions(2025);
+  } else {
+    // Interactive mode (original behavior)
+    // Ask user for selection method
+    console.log("\n📅 Choose your selection method:");
+    console.log("  1. Enter a specific Date (DD-MM-YY format)");
+    console.log("  2. Select by week number");
 
-    // Show first few weeks as examples
-    weeks.slice(0, 5).forEach((week) => {
-      console.log(`  ${week.value} - ${week.label}`);
-    });
-    console.log("  ...");
-    console.log(`  52 - ${weeks[51].label}\n`);
+    selectionMethod = await askQuestion("? Choose option (1 or 2): ");
 
-    const weekInput = await askQuestion(
-      "? Which week to collect? (enter week number): "
-    );
-    const weekNumber = parseInt(weekInput);
+    if (selectionMethod === "1") {
+      // Date-based selection
+      const dateInput = await askQuestion(
+        "? Enter Date in DD-MM-YY format (e.g., 15-03-25): "
+      );
 
-    if (weekNumber < 1 || weekNumber > 52) {
-      console.log("❌ Invalid week number");
+      try {
+        const selectedDate = parseDateDDMMYY(dateInput);
+        const boundaries = getSingleDayBoundaries(selectedDate);
+        weekStart = boundaries.dayStart;
+        weekEnd = boundaries.dayEnd;
+
+        console.log(
+          `\n📊 Collecting gaming data for ${selectedDate.toDateString()}`
+        );
+        console.log(`🎮 Date: ${selectedDate.toDateString()}\n`);
+      } catch (error) {
+        console.log(`❌ ${error.message}`);
+        process.exit(1);
+      }
+    } else if (selectionMethod === "2") {
+      // Week-based selection
+      console.log("\n📅 Available weeks:");
+      const weeks = generateWeekOptions(2025);
+
+      // Show first few weeks as examples
+      weeks.slice(0, 5).forEach((week) => {
+        console.log(`  ${week.value} - ${week.label}`);
+      });
+      console.log("  ...");
+      console.log(`  52 - ${weeks[51].label}\n`);
+
+      const weekInput = await askQuestion(
+        "? Which week to collect? (enter week number): "
+      );
+      const weekNumber = parseInt(weekInput);
+
+      if (weekNumber < 1 || weekNumber > 52) {
+        console.log("❌ Invalid week number");
+        process.exit(1);
+      }
+
+      selectedWeekNumber = weekNumber;
+      const boundaries = getWeekBoundaries(2025, weekNumber);
+      weekStart = boundaries.weekStart;
+      weekEnd = boundaries.weekEnd;
+
+      console.log(`\n📊 Week ${weekNumber} Selected`);
+      console.log(
+        `🎮 Date range: ${weekStart.toDateString()} - ${weekEnd.toDateString()}\n`
+      );
+    } else {
+      console.log("❌ Invalid option. Please choose 1 or 2.");
       process.exit(1);
     }
 
-    selectedWeekNumber = weekNumber;
-    const boundaries = getWeekBoundaries(2025, weekNumber);
-    weekStart = boundaries.weekStart;
-    weekEnd = boundaries.weekEnd;
+    // Confirmation step
+    console.log("\n📋 Summary:");
 
-    console.log(`\n📊 Week ${weekNumber} Selected`);
-    console.log(
-      `🎮 Date range: ${weekStart.toDateString()} - ${weekEnd.toDateString()}\n`
+    if (selectionMethod === "1") {
+      console.log(`📊 Single day operation`);
+      console.log(`🎮 Date: ${weekStart.toDateString()}`);
+    } else {
+      console.log(
+        `📊 Total days: ${Math.ceil(
+          (weekEnd - weekStart) / (1000 * 60 * 60 * 24)
+        )} days`
+      );
+      console.log(
+        `📅 Date range: ${weekStart.toDateString()} - ${weekEnd.toDateString()}`
+      );
+    }
+
+    const confirm = await askQuestion(
+      "\n? Proceed with collecting gaming data for this period? (y/n): "
     );
-  } else {
-    console.log("❌ Invalid option. Please choose 1 or 2.");
-    process.exit(1);
-  }
 
-  // Confirmation step
-  console.log("\n📋 Summary:");
+    if (confirm.toLowerCase() !== "y" && confirm.toLowerCase() !== "yes") {
+      console.log("❌ Operation cancelled.");
+      rl.close();
+      return;
+    }
 
-  if (selectionMethod === "1") {
-    console.log(`📊 Single day operation`);
-    console.log(`🎮 Date: ${weekStart.toDateString()}`);
-  } else {
-    console.log(
-      `📊 Total days: ${Math.ceil(
-        (weekEnd - weekStart) / (1000 * 60 * 60 * 24)
-      )} days`
-    );
-    console.log(
-      `📅 Date range: ${weekStart.toDateString()} - ${weekEnd.toDateString()}`
-    );
-  }
-
-  const confirm = await askQuestion(
-    "\n? Proceed with collecting gaming data for this period? (y/n): "
-  );
-
-  if (confirm.toLowerCase() !== "y" && confirm.toLowerCase() !== "yes") {
-    console.log("❌ Operation cancelled.");
     rl.close();
-    return;
   }
-
-  rl.close();
 
   console.log(`\n🔄 Fetching from Steam API...`);
   console.log(
@@ -158,9 +185,11 @@ async function main() {
       // Check if this activity already exists (deduplication)
       const exists = await notion.checkActivityExists(activity.id);
       if (exists) {
-        console.log(
-          `⏭️  Skipped ${activity.gameName} on ${activity.date}: Already exists`
-        );
+        if (!isNonInteractive) {
+          console.log(
+            `⏭️  Skipped ${activity.gameName} on ${activity.date}: Already exists`
+          );
+        }
         skippedCount++;
         continue;
       }

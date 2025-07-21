@@ -6,15 +6,23 @@ const {
 } = require("./lib/utils/strava-week-utils.js");
 const readline = require("readline");
 
+// Check for CLI arguments for non-interactive mode
+const args = process.argv.slice(2);
+const isNonInteractive = args.length > 0;
+const cliDateInput = args[0];
+
 // Create clients
 const strava = new StravaClient();
 const notion = new NotionClient();
 
-// Create readline interface
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+// Create readline interface only if needed
+let rl;
+if (!isNonInteractive) {
+  rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+}
 
 function askQuestion(question) {
   return new Promise((resolve) => {
@@ -85,103 +93,134 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(""); // Add spacing after connection messages
+  let weekStart, weekEnd, dateRangeLabel, selectedDate, weekNumber, optionInput;
 
-  console.log("📅 Choose your selection method:");
-  console.log("  1. Enter a specific Date (DD-MM-YY format)");
-  console.log("  2. Select by week number");
-
-  const optionInput = await askQuestion("? Choose option (1 or 2): ");
-
-  let weekStart, weekEnd, dateRangeLabel, selectedDate, weekNumber;
-
-  if (optionInput === "1") {
-    // Specific date input
-    let validDate = false;
-
-    while (!validDate) {
-      const dateInput = await askQuestion(
-        "? Enter Date in DD-MM-YY format (e.g., 15-03-25): "
-      );
-
-      const validation = validateDate(dateInput);
-      if (validation.valid) {
-        selectedDate = validation.date;
-        validDate = true;
-      } else {
-        console.log(`❌ ${validation.error}`);
+  if (isNonInteractive) {
+    // Non-interactive mode with CLI argument
+    try {
+      const validation = validateDate(cliDateInput);
+      if (!validation.valid) {
+        throw new Error(validation.error);
       }
+
+      selectedDate = validation.date;
+      optionInput = "1"; // Force single day mode
+
+      // Set start and end to the same day
+      weekStart = new Date(selectedDate);
+      weekStart.setHours(0, 0, 0, 0);
+
+      weekEnd = new Date(selectedDate);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      dateRangeLabel = `Date: ${selectedDate.toDateString()}`;
+
+      console.log(
+        `📊 Collecting Strava data for ${selectedDate.toDateString()}`
+      );
+    } catch (error) {
+      console.error(`❌ ${error.message}`);
+      process.exit(1);
     }
+  } else {
+    // Interactive mode (original behavior)
+    console.log(""); // Add spacing after connection messages
 
-    // Set start and end to the same day
-    weekStart = new Date(selectedDate);
-    weekStart.setHours(0, 0, 0, 0);
+    console.log("📅 Choose your selection method:");
+    console.log("  1. Enter a specific Date (DD-MM-YY format)");
+    console.log("  2. Select by week number");
 
-    weekEnd = new Date(selectedDate);
-    weekEnd.setHours(23, 59, 59, 999);
+    optionInput = await askQuestion("? Choose option (1 or 2): ");
 
-    dateRangeLabel = `Date: ${selectedDate.toDateString()}`;
-  } else if (optionInput === "2") {
-    // Week selection (current behavior)
-    console.log("\n📅 Available weeks:");
-    const weeks = generateWeekOptions(2025);
+    if (optionInput === "1") {
+      // Specific date input
+      let validDate = false;
 
-    // Show first few weeks as examples
-    weeks.slice(0, 5).forEach((week, index) => {
-      console.log(`  ${week.value} - ${week.label}`);
-    });
-    console.log("  ...");
-    console.log(`  52 - ${weeks[51].label}\n`);
+      while (!validDate) {
+        const dateInput = await askQuestion(
+          "? Enter Date in DD-MM-YY format (e.g., 15-03-25): "
+        );
 
-    const weekInput = await askQuestion(
-      "? Which week to collect? (enter week number): "
-    );
-    weekNumber = parseInt(weekInput);
+        const validation = validateDate(dateInput);
+        if (validation.valid) {
+          selectedDate = validation.date;
+          validDate = true;
+        } else {
+          console.log(`❌ ${validation.error}`);
+        }
+      }
 
-    if (weekNumber < 1 || weekNumber > 52) {
-      console.log("❌ Invalid week number");
+      // Set start and end to the same day
+      weekStart = new Date(selectedDate);
+      weekStart.setHours(0, 0, 0, 0);
+
+      weekEnd = new Date(selectedDate);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      dateRangeLabel = `Date: ${selectedDate.toDateString()}`;
+    } else if (optionInput === "2") {
+      // Week selection (current behavior)
+      console.log("\n📅 Available weeks:");
+      const weeks = generateWeekOptions(2025);
+
+      // Show first few weeks as examples
+      weeks.slice(0, 5).forEach((week, index) => {
+        console.log(`  ${week.value} - ${week.label}`);
+      });
+      console.log("  ...");
+      console.log(`  52 - ${weeks[51].label}\n`);
+
+      const weekInput = await askQuestion(
+        "? Which week to collect? (enter week number): "
+      );
+      weekNumber = parseInt(weekInput);
+
+      if (weekNumber < 1 || weekNumber > 52) {
+        console.log("❌ Invalid week number");
+        process.exit(1);
+      }
+
+      const weekData = getWeekBoundaries(2025, weekNumber);
+      weekStart = weekData.weekStart;
+      weekEnd = weekData.weekEnd;
+      dateRangeLabel = `Week ${weekNumber}`;
+    } else {
+      console.log("❌ Invalid option. Please choose 1 or 2.");
       process.exit(1);
     }
 
-    const weekData = getWeekBoundaries(2025, weekNumber);
-    weekStart = weekData.weekStart;
-    weekEnd = weekData.weekEnd;
-    dateRangeLabel = `Week ${weekNumber}`;
-  } else {
-    console.log("❌ Invalid option. Please choose 1 or 2.");
-    process.exit(1);
-  }
+    if (optionInput === "1") {
+      // Calculate which week this date falls into
+      const weekBoundaries = getWeekBoundariesForDate(selectedDate);
+      const weekStartForDate = weekBoundaries.weekStart;
+      const weekEndForDate = weekBoundaries.weekEnd;
 
-  if (optionInput === "1") {
-    // Calculate which week this date falls into
-    const weekBoundaries = getWeekBoundariesForDate(selectedDate);
-    const weekStartForDate = weekBoundaries.weekStart;
-    const weekEndForDate = weekBoundaries.weekEnd;
-
-    // Find the week number by checking which week of 2025 this falls into
-    weekNumber = 1;
-    for (let i = 1; i <= 52; i++) {
-      const { weekStart: testWeekStart, weekEnd: testWeekEnd } =
-        getWeekBoundaries(2025, i);
-      if (selectedDate >= testWeekStart && selectedDate <= testWeekEnd) {
-        weekNumber = i;
-        break;
+      // Find the week number by checking which week of 2025 this falls into
+      weekNumber = 1;
+      for (let i = 1; i <= 52; i++) {
+        const { weekStart: testWeekStart, weekEnd: testWeekEnd } =
+          getWeekBoundaries(2025, i);
+        if (selectedDate >= testWeekStart && selectedDate <= testWeekEnd) {
+          weekNumber = i;
+          break;
+        }
       }
+
+      console.log(`\n📊 Week ${weekNumber}: ${selectedDate.toDateString()}`);
+    } else {
+      console.log(
+        `\n📊 Week ${weekNumber}: ${weekStart.toDateString()} - ${weekEnd.toDateString()}`
+      );
     }
 
-    console.log(`\n📊 Week ${weekNumber}: ${selectedDate.toDateString()}`);
-  } else {
-    console.log(
-      `\n📊 Week ${weekNumber}: ${weekStart.toDateString()} - ${weekEnd.toDateString()}`
-    );
-  }
+    // Final confirmation
+    const finalConfirm = await askQuestion("? Proceed? (y/n): ");
+    if (finalConfirm.toLowerCase() !== "y") {
+      console.log("❌ Cancelled");
+      process.exit(0);
+    }
 
-  // Final confirmation
-
-  const finalConfirm = await askQuestion("? Proceed? (y/n): ");
-  if (finalConfirm.toLowerCase() !== "y") {
-    console.log("❌ Cancelled");
-    process.exit(0);
+    rl.close();
   }
 
   console.log("\n🚀 Collecting...\n");
@@ -191,7 +230,9 @@ async function main() {
 
   if (activities.length === 0) {
     console.log(`📭 Week ${weekNumber}: No activities found`);
-    rl.close();
+    if (!isNonInteractive) {
+      rl.close();
+    }
     process.exit(0);
   }
 
@@ -246,16 +287,6 @@ async function main() {
 
       if (optionInput === "1") {
         console.log(
-          `✅ Processing Date ${selectedDate.toDateString()} from Strava Date ${
-            activity.start_date.split("T")[0]
-          }`
-        );
-        console.log(
-          `✅ Created workout record for Date: ${selectedDate.toDateString()} (Strava Date: ${
-            activity.start_date.split("T")[0]
-          })`
-        );
-        console.log(
           `✅ Saved ${selectedDate.toDateString()}: ${activity.name} | ${
             activity.type
           } | ${
@@ -280,7 +311,9 @@ async function main() {
 
   console.log(`\n✅ Week ${weekNumber}: ${savedCount} workouts saved`);
 
-  rl.close();
+  if (!isNonInteractive) {
+    rl.close();
+  }
 }
 
 main().catch(console.error);
