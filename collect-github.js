@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const GitHubClient = require("./lib/clients/github-client.js");
 const NotionClient = require("./lib/notion/github-notion-client.js");
 const {
@@ -243,27 +244,39 @@ async function main() {
 
   console.log("🔨 Processing GitHub activities:");
   let savedCount = 0;
+  let skippedCount = 0;
 
   for (const activity of activities) {
     try {
       console.log(
         `🔄 Processing activity: ${activity.repository} - ${activity.date} - ${activity.commitsCount} commits`
       );
-      await notion.createWorkoutRecord(activity);
-      savedCount++;
+      const result = await notion.createWorkoutRecord(activity);
 
-      if (optionInput === "1") {
-        console.log(
-          `✅ Saved Eastern ${selectedDate.toDateString()}: ${
-            activity.repository
-          } | ${activity.commitsCount} commits | ${
-            activity.totalChanges
-          } changes`
-        );
+      if (result === null) {
+        // Record was skipped (duplicate)
+        skippedCount++;
+        if (optionInput === "1") {
+          console.log(
+            `⏭️  Skipped Eastern ${selectedDate.toDateString()}: ${activity.repository} | ${activity.commitsCount} commits | ${activity.totalChanges} changes`
+          );
+        } else {
+          console.log(
+            `⏭️  Skipped ${activity.repository}: ${activity.commitsCount} commits | ${activity.totalChanges} changes`
+          );
+        }
       } else {
-        console.log(
-          `✅ Saved ${activity.repository}: ${activity.commitsCount} commits | ${activity.totalChanges} changes`
-        );
+        // Record was created
+        savedCount++;
+        if (optionInput === "1") {
+          console.log(
+            `✅ Saved Eastern ${selectedDate.toDateString()}: ${activity.repository} | ${activity.commitsCount} commits | ${activity.totalChanges} changes`
+          );
+        } else {
+          console.log(
+            `✅ Saved ${activity.repository}: ${activity.commitsCount} commits | ${activity.totalChanges} changes`
+          );
+        }
       }
     } catch (error) {
       console.error(`❌ Failed to save ${activity.repository}:`, error.message);
@@ -282,7 +295,10 @@ async function main() {
   }
 
   console.log(
-    `\n✅ Successfully saved ${savedCount} GitHub activities to Notion for ${dateRangeStr}!`
+    `\n✅ Successfully processed GitHub activities for ${dateRangeStr}!`
+  );
+  console.log(
+    `📊 Summary: ${savedCount} new records created, ${skippedCount} duplicates skipped`
   );
 }
 
