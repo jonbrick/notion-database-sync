@@ -133,7 +133,26 @@ async function main() {
   try {
     // Get command line arguments
     const args = process.argv.slice(2);
-    const inputDate = args[0] || "today";
+    let inputDate = args[0];
+
+    // If no date provided via command line, prompt for one
+    if (!inputDate) {
+      console.log("🗓️  GitHub Activity & Health Data Collector");
+      console.log("================================================");
+      console.log("");
+      console.log("📅 Date options:");
+      console.log("   yesterday          Yesterday's date");
+      console.log("   today              Today's date");
+      console.log("   tomorrow           Tomorrow's date");
+      console.log("   DD-MM-YY           Specific date (e.g., 15-12-24)");
+      console.log("");
+
+      inputDate = await askQuestion("? Enter date to collect data for: ");
+
+      if (!inputDate.trim()) {
+        inputDate = "today"; // Default to today if nothing entered
+      }
+    }
 
     // Convert input to DD-MM-YY format
     const dateString = convertDateInput(inputDate);
@@ -144,7 +163,7 @@ async function main() {
     const dateInfo = getDateInfo(dateString);
     if (!dateInfo.valid) {
       console.error(`❌ ${dateInfo.error}`);
-      console.log("Please use DD-MM-YY format (e.g., 07-20-25)");
+      console.log("Please use DD-MM-YY format (e.g., 15-12-24)");
       process.exit(1);
     }
 
@@ -221,16 +240,25 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(`
 Usage: node collect-day.js [date]
 
+Interactive mode (no arguments):
+  node collect-day.js              # Prompts for date selection
+
+Non-interactive mode:
+  node collect-day.js yesterday    # Yesterday's date
+  node collect-day.js today        # Today's date
+  node collect-day.js tomorrow     # Tomorrow's date
+  node collect-day.js 15-12-24    # Specific date
+
 Date options:
   yesterday          Yesterday's date
   today              Today's date (default)
   tomorrow           Tomorrow's date
-  DD-MM-YY           Specific date (e.g., 07-20-25)
+  DD-MM-YY           Specific date (e.g., 15-12-24)
 
 Examples:
-  node collect-day.js yesterday
-  node collect-day.js 15-12-24
-  node collect-day.js              # defaults to today
+  node collect-day.js              # Interactive mode
+  node collect-day.js yesterday    # Non-interactive mode
+  node collect-day.js 15-12-24    # Non-interactive mode
 `);
   process.exit(0);
 }
