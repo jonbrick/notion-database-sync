@@ -141,16 +141,18 @@ async function main() {
       console.log("================================================");
       console.log("");
       console.log("📅 Date options:");
-      console.log("   yesterday          Yesterday's date");
+      console.log("   yesterday          Yesterday's date (default)");
       console.log("   today              Today's date");
       console.log("   tomorrow           Tomorrow's date");
       console.log("   DD-MM-YY           Specific date (e.g., 15-12-24)");
       console.log("");
 
-      inputDate = await askQuestion("? Enter date to collect data for: ");
+      inputDate = await askQuestion(
+        "? Enter date to collect data for (or enter for yesterday): "
+      );
 
       if (!inputDate.trim()) {
-        inputDate = "today"; // Default to today if nothing entered
+        inputDate = "yesterday"; // Default to yesterday if nothing entered
       }
     }
 
