@@ -150,7 +150,7 @@ function parseCollectorOutput(output) {
   const summary = {
     activities: 0,
     workouts: 0,
-    sleepRecords: 0,
+    sleepSessions: 0,
     bodyWeightRecords: 0,
     gamesSessions: 0,
     commits: 0,
@@ -194,12 +194,15 @@ function parseCollectorOutput(output) {
         if (match) summary.workouts += parseInt(match[1]);
       }
 
-      // Oura patterns - only count new saves, not skipped
-      if (line.includes("sleep") && !line.includes("Skipped")) {
+      // Oura patterns - count from "Successfully saved X new sleep sessions" line only
+      if (
+        line.includes("Successfully saved") &&
+        line.includes("new sleep sessions")
+      ) {
         const match = line.match(
-          /(\d+)\s+(new\s+)?sleep\s+(record|session|period)s?/i
+          /Successfully saved (\d+) new sleep sessions/i
         );
-        if (match) summary.sleepRecords += parseInt(match[1]);
+        if (match) summary.sleepSessions += parseInt(match[1]);
       }
 
       // Withings patterns
@@ -225,9 +228,11 @@ function parseCollectorOutput(output) {
 
     // Look for "Successfully saved X new" pattern specifically
     if (line.includes("Successfully saved") && line.includes("new")) {
-      if (line.includes("sleep")) {
-        const match = line.match(/Successfully saved (\d+) new sleep/i);
-        if (match) summary.sleepRecords += parseInt(match[1]);
+      if (line.includes("sleep sessions")) {
+        const match = line.match(
+          /Successfully saved (\d+) new sleep sessions/i
+        );
+        if (match) summary.sleepSessions += parseInt(match[1]);
       }
       if (line.includes("workout") || line.includes("workouts")) {
         const match = line.match(/Successfully saved (\d+) new.*workout/i);
@@ -266,13 +271,10 @@ function parseCollectorOutput(output) {
           if (match) summary.workouts += parseInt(match[1]);
         }
       }
-      if (
-        line.includes("sleep") &&
-        !line.includes("Skipped") &&
-        !line.includes("Found")
-      ) {
-        const match = line.match(/(\d+)\s+(new\s+)?sleep/i);
-        if (match) summary.sleepRecords += parseInt(match[1]);
+      // For sleep, only count from "Found X sleep sessions" line
+      if (line.includes("Found") && line.includes("sleep sessions")) {
+        const match = line.match(/Found (\d+) sleep sessions/i);
+        if (match) summary.sleepSessions += parseInt(match[1]);
       }
       if (line.includes("weight") && !line.includes("Found")) {
         const match = line.match(/(\d+)\s+weight/i);
@@ -358,7 +360,7 @@ async function main() {
     const overallSummary = {
       activities: 0,
       workouts: 0,
-      sleepRecords: 0,
+      sleepSessions: 0,
       bodyWeightRecords: 0,
       gamesSessions: 0,
       commits: 0,
@@ -444,9 +446,9 @@ async function main() {
       hasData = true;
     }
 
-    if (overallSummary.sleepRecords > 0) {
+    if (overallSummary.sleepSessions > 0) {
       console.log(
-        `😴 Collected ${overallSummary.sleepRecords} sleep ${overallSummary.sleepRecords === 1 ? "record" : "records"}`
+        `😴 Collected ${overallSummary.sleepSessions} sleep ${overallSummary.sleepSessions === 1 ? "session" : "sessions"}`
       );
       hasData = true;
     }
