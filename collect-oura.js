@@ -241,16 +241,23 @@ async function main() {
         );
       }
 
-      await notion.createSleepRecord(session);
-      savedCount++;
+      const result = await notion.createSleepRecord(session);
 
       const duration = transformedData["Sleep Duration"].number;
       const efficiency = session.efficiency;
       const calendar = transformedData["Google Calendar"].select.name;
 
-      console.log(
-        `✅ Saved ${transformedData["Night of"].title[0].text.content}: ${duration}hrs | ${efficiency}% efficiency | ${calendar}`
-      );
+      if (result.skipped) {
+        skippedCount++;
+        console.log(
+          `⏭️  Skipped ${transformedData["Night of"].title[0].text.content}: ${duration}hrs | ${efficiency}% efficiency | ${calendar} (already exists)`
+        );
+      } else {
+        savedCount++;
+        console.log(
+          `✅ Saved ${transformedData["Night of"].title[0].text.content}: ${duration}hrs | ${efficiency}% efficiency | ${calendar}`
+        );
+      }
     } catch (error) {
       console.error(
         `❌ Failed to save sleep data for ${session.day}:`,
@@ -260,10 +267,12 @@ async function main() {
   }
 
   console.log(
-    `\n✅ Successfully saved ${savedCount} sleep sessions to Notion!`
+    `\n✅ Successfully saved ${savedCount} new sleep sessions to Notion!`
   );
   if (skippedCount > 0) {
-    console.log(`ℹ️  Skipped ${skippedCount} sessions outside the target week`);
+    console.log(
+      `⏭️  Skipped ${skippedCount} sessions that already exist in Notion`
+    );
   }
 
   // Show summary of what was processed

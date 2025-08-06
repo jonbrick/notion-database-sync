@@ -879,6 +879,13 @@ async function syncGitHubWork(
     optionInput
   );
   console.log(`\n${summary}`);
+
+  // Return summary data for recap
+  return {
+    syncType: "GitHub Work",
+    count: createdCount,
+    emoji: "💼",
+  };
 }
 
 async function syncGitHubPersonal(
@@ -963,6 +970,13 @@ async function syncGitHubPersonal(
     optionInput
   );
   console.log(`\n${summary}`);
+
+  // Return summary data for recap
+  return {
+    syncType: "GitHub Personal",
+    count: createdCount,
+    emoji: "💻",
+  };
 }
 
 async function syncWorkouts(
@@ -1040,6 +1054,13 @@ async function syncWorkouts(
     optionInput
   );
   console.log(`\n${summary}`);
+
+  // Return summary data for recap
+  return {
+    syncType: "Workouts",
+    count: createdCount,
+    emoji: "🏃‍♂️",
+  };
 }
 
 async function syncSleep(
@@ -1112,6 +1133,13 @@ async function syncSleep(
     optionInput
   );
   console.log(`\n${summary}`);
+
+  // Return summary data for recap
+  return {
+    syncType: "Sleep Records",
+    count: createdCount,
+    emoji: "😴",
+  };
 }
 
 async function syncBodyWeight(
@@ -1194,6 +1222,13 @@ async function syncBodyWeight(
     optionInput
   );
   console.log(`\n${summary}`);
+
+  // Return summary data for recap
+  return {
+    syncType: "Body Weight Records",
+    count: createdCount,
+    emoji: "⚖️",
+  };
 }
 
 async function syncVideoGames(
@@ -1269,6 +1304,13 @@ async function syncVideoGames(
     optionInput
   );
   console.log(`\n${summary}`);
+
+  // Return summary data for recap
+  return {
+    syncType: "Gaming Sessions",
+    count: createdCount,
+    emoji: "🎮",
+  };
 }
 
 // Helper function to execute sync for single or multiple weeks
@@ -1283,6 +1325,8 @@ async function executeSyncForWeeks(
   dateRangeLabel,
   dryRun
 ) {
+  const summaries = [];
+
   if (isMultipleWeeks) {
     for (let i = 0; i < multipleWeeks.length; i++) {
       const week = multipleWeeks[i];
@@ -1297,7 +1341,7 @@ async function executeSyncForWeeks(
       );
       console.log(`${"=".repeat(60)}\n`);
 
-      await syncFunction(
+      const summary = await syncFunction(
         week.weekStart,
         week.weekEnd,
         selectedDate,
@@ -1305,9 +1349,10 @@ async function executeSyncForWeeks(
         week.dateRangeLabel,
         dryRun
       );
+      summaries.push(summary);
     }
   } else {
-    await syncFunction(
+    const summary = await syncFunction(
       weekStart,
       weekEnd,
       selectedDate,
@@ -1315,7 +1360,10 @@ async function executeSyncForWeeks(
       dateRangeLabel,
       dryRun
     );
+    summaries.push(summary);
   }
+
+  return summaries;
 }
 
 // Main execution
@@ -1437,10 +1485,13 @@ async function main() {
     );
   }
 
+  // Track summaries for final recap
+  const allSummaries = [];
+
   switch (choice) {
     case "1":
       console.log("🔄 Running all syncs...\n");
-      await syncGitHubPersonal(
+      const personalSummary = await syncGitHubPersonal(
         weekStart,
         weekEnd,
         selectedDate,
@@ -1448,8 +1499,9 @@ async function main() {
         dateRangeLabel,
         dryRun
       );
+      allSummaries.push(personalSummary);
       console.log("\n" + "=".repeat(50) + "\n");
-      await syncGitHubWork(
+      const workSummary = await syncGitHubWork(
         weekStart,
         weekEnd,
         selectedDate,
@@ -1457,8 +1509,9 @@ async function main() {
         dateRangeLabel,
         dryRun
       );
+      allSummaries.push(workSummary);
       console.log("\n" + "=".repeat(50) + "\n");
-      await syncSleep(
+      const sleepSummary = await syncSleep(
         weekStart,
         weekEnd,
         selectedDate,
@@ -1466,8 +1519,9 @@ async function main() {
         dateRangeLabel,
         dryRun
       );
+      allSummaries.push(sleepSummary);
       console.log("\n" + "=".repeat(50) + "\n");
-      await syncVideoGames(
+      const videoGameSummary = await syncVideoGames(
         weekStart,
         weekEnd,
         selectedDate,
@@ -1475,8 +1529,9 @@ async function main() {
         dateRangeLabel,
         dryRun
       );
+      allSummaries.push(videoGameSummary);
       console.log("\n" + "=".repeat(50) + "\n");
-      await syncWorkouts(
+      const workoutSummary = await syncWorkouts(
         weekStart,
         weekEnd,
         selectedDate,
@@ -1484,8 +1539,9 @@ async function main() {
         dateRangeLabel,
         dryRun
       );
+      allSummaries.push(workoutSummary);
       console.log("\n" + "=".repeat(50) + "\n");
-      await syncBodyWeight(
+      const bodyWeightSummary = await syncBodyWeight(
         weekStart,
         weekEnd,
         selectedDate,
@@ -1493,9 +1549,10 @@ async function main() {
         dateRangeLabel,
         dryRun
       );
+      allSummaries.push(bodyWeightSummary);
       break;
     case "2":
-      await executeSyncForWeeks(
+      const summaries2 = await executeSyncForWeeks(
         syncGitHubPersonal,
         isMultipleWeeks,
         multipleWeeks,
@@ -1506,9 +1563,10 @@ async function main() {
         dateRangeLabel,
         dryRun
       );
+      allSummaries.push(...summaries2);
       break;
     case "3":
-      await executeSyncForWeeks(
+      const summaries3 = await executeSyncForWeeks(
         syncGitHubWork,
         isMultipleWeeks,
         multipleWeeks,
@@ -1519,9 +1577,10 @@ async function main() {
         dateRangeLabel,
         dryRun
       );
+      allSummaries.push(...summaries3);
       break;
     case "4":
-      await executeSyncForWeeks(
+      const summaries4 = await executeSyncForWeeks(
         syncSleep,
         isMultipleWeeks,
         multipleWeeks,
@@ -1532,9 +1591,10 @@ async function main() {
         dateRangeLabel,
         dryRun
       );
+      allSummaries.push(...summaries4);
       break;
     case "5":
-      await executeSyncForWeeks(
+      const summaries5 = await executeSyncForWeeks(
         syncVideoGames,
         isMultipleWeeks,
         multipleWeeks,
@@ -1545,9 +1605,10 @@ async function main() {
         dateRangeLabel,
         dryRun
       );
+      allSummaries.push(...summaries5);
       break;
     case "6":
-      await executeSyncForWeeks(
+      const summaries6 = await executeSyncForWeeks(
         syncWorkouts,
         isMultipleWeeks,
         multipleWeeks,
@@ -1558,9 +1619,10 @@ async function main() {
         dateRangeLabel,
         dryRun
       );
+      allSummaries.push(...summaries6);
       break;
     case "7":
-      await executeSyncForWeeks(
+      const summaries7 = await executeSyncForWeeks(
         syncBodyWeight,
         isMultipleWeeks,
         multipleWeeks,
@@ -1571,6 +1633,7 @@ async function main() {
         dateRangeLabel,
         dryRun
       );
+      allSummaries.push(...summaries7);
       break;
     default:
       console.log("❌ Invalid choice. Please run again and choose 1-7.");
@@ -1585,6 +1648,65 @@ async function main() {
     console.log(`📅 Weeks processed: ${dateSelection.weekNumbers.join(", ")}`);
     console.log(`${"=".repeat(60)}`);
   }
+
+  // Display comprehensive final recap
+  console.log("");
+  console.log("📊 CALENDAR UPDATE RECAP");
+  console.log("========================");
+
+  // Display period information
+  if (optionInput === "1") {
+    console.log(`📅 Updated calendar for ${selectedDate.toDateString()}`);
+  } else if (isMultipleWeeks) {
+    console.log(`📅 Updated calendar for ${multipleWeeks.length} weeks`);
+    console.log(`   Weeks: ${dateSelection.weekNumbers.join(", ")}`);
+  } else {
+    const totalDays = Math.ceil((weekEnd - weekStart) / (1000 * 60 * 60 * 24));
+    console.log(`📅 Updated calendar for ${totalDays} days`);
+    console.log(`   ${weekStart.toDateString()} - ${weekEnd.toDateString()}`);
+  }
+
+  console.log("");
+
+  // Aggregate summaries by type
+  const aggregatedSummaries = {};
+  let totalUpdates = 0;
+
+  allSummaries.forEach((summary) => {
+    if (summary && summary.syncType) {
+      if (!aggregatedSummaries[summary.syncType]) {
+        aggregatedSummaries[summary.syncType] = {
+          count: 0,
+          emoji: summary.emoji,
+        };
+      }
+      aggregatedSummaries[summary.syncType].count += summary.count;
+      totalUpdates += summary.count;
+    }
+  });
+
+  // Display what was updated
+  let hasUpdates = false;
+  Object.entries(aggregatedSummaries).forEach(([syncType, data]) => {
+    if (data.count > 0) {
+      console.log(
+        `${data.emoji} Updated ${data.count} ${syncType.toLowerCase()}`
+      );
+      hasUpdates = true;
+    }
+  });
+
+  if (!hasUpdates) {
+    console.log("📭 No calendar events were created");
+  } else {
+    console.log("");
+    console.log(
+      `📊 Total: ${totalUpdates} calendar events ${dryRun ? "would be" : "were"} ${dryRun ? "created" : "created"}`
+    );
+  }
+
+  console.log("");
+  console.log("🎉 Calendar sync complete!");
 }
 
 main().catch(console.error);

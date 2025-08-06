@@ -107,16 +107,33 @@ function getDateInfo(dateString) {
   }
 }
 
-// Run a single collector script
+// Run a single collector script and capture output for recap
 function runCollector(script, date) {
   return new Promise((resolve, reject) => {
+    let stdout = "";
+    let stderr = "";
+
     const child = spawn("node", [script, date], {
-      stdio: "inherit", // Pass through all output
+      stdio: ["inherit", "pipe", "pipe"], // Capture stdout/stderr but inherit stdin
+    });
+
+    // Forward stdout to console and capture for parsing
+    child.stdout.on("data", (data) => {
+      const output = data.toString();
+      process.stdout.write(output);
+      stdout += output;
+    });
+
+    // Forward stderr to console and capture
+    child.stderr.on("data", (data) => {
+      const output = data.toString();
+      process.stderr.write(output);
+      stderr += output;
     });
 
     child.on("close", (code) => {
       if (code === 0) {
-        resolve();
+        resolve(parseCollectorOutput(stdout));
       } else {
         reject(new Error(`Process exited with code ${code}`));
       }
@@ -126,6 +143,155 @@ function runCollector(script, date) {
       reject(error);
     });
   });
+}
+
+// Parse collector output to extract summary information
+function parseCollectorOutput(output) {
+  const summary = {
+    activities: 0,
+    workouts: 0,
+    sleepRecords: 0,
+    bodyWeightRecords: 0,
+    gamesSessions: 0,
+    commits: 0,
+    repositories: 0,
+  };
+
+  const lines = output.split("\n");
+
+  for (const line of lines) {
+    // More flexible patterns - look for numbers followed by relevant keywords
+
+    // GitHub patterns - look for various success indicators
+    if (
+      line.includes("✅") ||
+      line.includes("Created") ||
+      line.includes("Updated") ||
+      line.includes("Added") ||
+      line.includes("Saved")
+    ) {
+      // GitHub activities
+      if (line.includes("activity") || line.includes("activities")) {
+        const match = line.match(/(\d+)\s+activit(y|ies)/i);
+        if (match) summary.activities += parseInt(match[1]);
+      }
+      if (line.includes("commit") || line.includes("commits")) {
+        const match = line.match(/(\d+)\s+commits?/i);
+        if (match) summary.commits += parseInt(match[1]);
+      }
+      if (line.includes("repo") || line.includes("repositories")) {
+        const match = line.match(/(\d+)\s+repositor(y|ies)/i);
+        if (match) summary.repositories += parseInt(match[1]);
+      }
+
+      // Strava patterns
+      if (
+        line.includes("workout") ||
+        line.includes("workouts") ||
+        line.includes("exercise")
+      ) {
+        const match = line.match(/(\d+)\s+(workouts?|exercises?)/i);
+        if (match) summary.workouts += parseInt(match[1]);
+      }
+
+      // Oura patterns - only count new saves, not skipped
+      if (line.includes("sleep") && !line.includes("Skipped")) {
+        const match = line.match(
+          /(\d+)\s+(new\s+)?sleep\s+(record|session|period)s?/i
+        );
+        if (match) summary.sleepRecords += parseInt(match[1]);
+      }
+
+      // Withings patterns
+      if (line.includes("weight") || line.includes("body")) {
+        const match = line.match(
+          /(\d+)\s+(body\s+weight|weight)\s+(record|measurement)s?/i
+        );
+        if (match) summary.bodyWeightRecords += parseInt(match[1]);
+      }
+
+      // Steam patterns
+      if (
+        line.includes("game") ||
+        line.includes("gaming") ||
+        line.includes("session")
+      ) {
+        const match = line.match(
+          /(\d+)\s+(gaming\s+sessions?|game\s+sessions?|sessions?)/i
+        );
+        if (match) summary.gamesSessions += parseInt(match[1]);
+      }
+    }
+
+    // Look for "Successfully saved X new" pattern specifically
+    if (line.includes("Successfully saved") && line.includes("new")) {
+      if (line.includes("sleep")) {
+        const match = line.match(/Successfully saved (\d+) new sleep/i);
+        if (match) summary.sleepRecords += parseInt(match[1]);
+      }
+      if (line.includes("workout") || line.includes("workouts")) {
+        const match = line.match(/Successfully saved (\d+) new.*workout/i);
+        if (match) summary.workouts += parseInt(match[1]);
+      }
+      if (line.includes("weight") || line.includes("body")) {
+        const match = line.match(/Successfully saved (\d+) new.*weight/i);
+        if (match) summary.bodyWeightRecords += parseInt(match[1]);
+      }
+      if (line.includes("game") || line.includes("gaming")) {
+        const match = line.match(/Successfully saved (\d+) new.*gam/i);
+        if (match) summary.gamesSessions += parseInt(match[1]);
+      }
+      if (line.includes("activit")) {
+        const match = line.match(/Successfully saved (\d+) new.*activit/i);
+        if (match) summary.activities += parseInt(match[1]);
+      }
+    }
+
+    // Also look for summary lines that might have different formats
+    // Like "Found X items" or "Processing X records"
+    if (
+      line.includes("Found") ||
+      line.includes("Processing") ||
+      line.includes("Collected")
+    ) {
+      // Try to extract any numbers and context
+      if (line.includes("activity") || line.includes("activities")) {
+        const match = line.match(/(\d+)\s+activit(y|ies)/i);
+        if (match) summary.activities += parseInt(match[1]);
+      }
+      // Only count from specific success patterns, not "Found" lines
+      if (line.includes("workout") || line.includes("workouts")) {
+        if (!line.includes("Found")) {
+          const match = line.match(/(\d+)\s+workouts?/i);
+          if (match) summary.workouts += parseInt(match[1]);
+        }
+      }
+      if (
+        line.includes("sleep") &&
+        !line.includes("Skipped") &&
+        !line.includes("Found")
+      ) {
+        const match = line.match(/(\d+)\s+(new\s+)?sleep/i);
+        if (match) summary.sleepRecords += parseInt(match[1]);
+      }
+      if (line.includes("weight") && !line.includes("Found")) {
+        const match = line.match(/(\d+)\s+weight/i);
+        if (match) summary.bodyWeightRecords += parseInt(match[1]);
+      }
+      if (
+        (line.includes("game") || line.includes("gaming")) &&
+        !line.includes("Found")
+      ) {
+        const match = line.match(/(\d+)\s+(game|gaming)/i);
+        if (match) summary.gamesSessions += parseInt(match[1]);
+      }
+    }
+  }
+
+  // Debug: uncomment the next line to see what output was captured
+  // console.log("🔍 DEBUG - Captured output:", output.substring(0, 500));
+
+  return summary;
 }
 
 // Main function
@@ -189,6 +355,15 @@ async function main() {
 
     // Track results
     const results = [];
+    const overallSummary = {
+      activities: 0,
+      workouts: 0,
+      sleepRecords: 0,
+      bodyWeightRecords: 0,
+      gamesSessions: 0,
+      commits: 0,
+      repositories: 0,
+    };
 
     // Run each collector
     for (const collector of COLLECTORS) {
@@ -198,9 +373,14 @@ async function main() {
       );
 
       try {
-        await runCollector(collector.script, dateString);
+        const summary = await runCollector(collector.script, dateString);
         console.log(`✅ ${collector.name} collection completed successfully`);
-        results.push({ ...collector, success: true });
+        results.push({ ...collector, success: true, summary });
+
+        // Accumulate summary data
+        Object.keys(overallSummary).forEach((key) => {
+          overallSummary[key] += summary[key] || 0;
+        });
       } catch (error) {
         console.log(`❌ ${collector.name} collection failed`);
         results.push({ ...collector, success: false, error: error.message });
@@ -226,6 +406,70 @@ async function main() {
       );
     }
 
+    // Display comprehensive recap
+    console.log("");
+    console.log("📊 COLLECTION RECAP");
+    console.log("===================");
+
+    if (dateInfo.valid) {
+      console.log(
+        `📅 Collected data for ${dateInfo.dayOfWeek}, ${dateInfo.readableDate}`
+      );
+    } else {
+      console.log(`📅 Collected data for ${dateString}`);
+    }
+
+    console.log("");
+
+    // Show what was collected
+    let hasData = false;
+
+    if (overallSummary.activities > 0) {
+      console.log(
+        `🔨 Collected ${overallSummary.activities} GitHub ${overallSummary.activities === 1 ? "activity" : "activities"}`
+      );
+      hasData = true;
+    }
+    if (overallSummary.commits > 0) {
+      console.log(`   └─ Total commits: ${overallSummary.commits}`);
+    }
+    if (overallSummary.repositories > 0) {
+      console.log(`   └─ Repositories: ${overallSummary.repositories}`);
+    }
+
+    if (overallSummary.workouts > 0) {
+      console.log(
+        `🏃‍♂️ Collected ${overallSummary.workouts} ${overallSummary.workouts === 1 ? "workout" : "workouts"}`
+      );
+      hasData = true;
+    }
+
+    if (overallSummary.sleepRecords > 0) {
+      console.log(
+        `😴 Collected ${overallSummary.sleepRecords} sleep ${overallSummary.sleepRecords === 1 ? "record" : "records"}`
+      );
+      hasData = true;
+    }
+
+    if (overallSummary.bodyWeightRecords > 0) {
+      console.log(
+        `⚖️ Collected ${overallSummary.bodyWeightRecords} body weight ${overallSummary.bodyWeightRecords === 1 ? "record" : "records"}`
+      );
+      hasData = true;
+    }
+
+    if (overallSummary.gamesSessions > 0) {
+      console.log(
+        `🎮 Collected ${overallSummary.gamesSessions} gaming ${overallSummary.gamesSessions === 1 ? "session" : "sessions"}`
+      );
+      hasData = true;
+    }
+
+    if (!hasData) {
+      console.log("📭 No new data was collected");
+    }
+
+    console.log("");
     console.log("🎉 Collection session complete!");
 
     // Exit with error code if any failed
