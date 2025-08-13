@@ -160,138 +160,50 @@ function parseCollectorOutput(output) {
   const lines = output.split("\n");
 
   for (const line of lines) {
-    // More flexible patterns - look for numbers followed by relevant keywords
+    // Look for clear summary lines from each collector
 
-    // GitHub patterns - look for various success indicators
-    if (
-      line.includes("✅") ||
-      line.includes("Created") ||
-      line.includes("Updated") ||
-      line.includes("Added") ||
-      line.includes("Saved")
-    ) {
-      // GitHub activities
-      if (line.includes("activity") || line.includes("activities")) {
-        const match = line.match(/(\d+)\s+activit(y|ies)/i);
-        if (match) summary.activities += parseInt(match[1]);
-      }
-      if (line.includes("commit") || line.includes("commits")) {
-        const match = line.match(/(\d+)\s+commits?/i);
-        if (match) summary.commits += parseInt(match[1]);
-      }
-      if (line.includes("repo") || line.includes("repositories")) {
-        const match = line.match(/(\d+)\s+repositor(y|ies)/i);
-        if (match) summary.repositories += parseInt(match[1]);
-      }
-
-      // Strava patterns
-      if (
-        line.includes("workout") ||
-        line.includes("workouts") ||
-        line.includes("exercise")
-      ) {
-        const match = line.match(/(\d+)\s+(workouts?|exercises?)/i);
-        if (match) summary.workouts += parseInt(match[1]);
-      }
-
-      // Oura patterns - count from "Successfully saved X new sleep sessions" line only
-      if (
-        line.includes("Successfully saved") &&
-        line.includes("new sleep sessions")
-      ) {
-        const match = line.match(
-          /Successfully saved (\d+) new sleep sessions/i
-        );
-        if (match) summary.sleepSessions += parseInt(match[1]);
-      }
-
-      // Withings patterns
-      if (line.includes("weight") || line.includes("body")) {
-        const match = line.match(
-          /(\d+)\s+(body\s+weight|weight)\s+(record|measurement)s?/i
-        );
-        if (match) summary.bodyWeightRecords += parseInt(match[1]);
-      }
-
-      // Steam patterns
-      if (
-        line.includes("game") ||
-        line.includes("gaming") ||
-        line.includes("session")
-      ) {
-        const match = line.match(
-          /(\d+)\s+(gaming\s+sessions?|game\s+sessions?|sessions?)/i
-        );
-        if (match) summary.gamesSessions += parseInt(match[1]);
-      }
+    // GitHub: "Successfully processed GitHub activities" and "Summary: X new records created"
+    if (line.includes("Successfully processed GitHub activities")) {
+      const match = line.match(/Summary: (\d+) new records created/);
+      if (match) summary.activities += parseInt(match[1]);
     }
 
-    // Look for "Successfully saved X new" pattern specifically
-    if (line.includes("Successfully saved") && line.includes("new")) {
-      if (line.includes("sleep sessions")) {
-        const match = line.match(
-          /Successfully saved (\d+) new sleep sessions/i
-        );
-        if (match) summary.sleepSessions += parseInt(match[1]);
-      }
-      if (line.includes("workout") || line.includes("workouts")) {
-        const match = line.match(/Successfully saved (\d+) new.*workout/i);
-        if (match) summary.workouts += parseInt(match[1]);
-      }
-      if (line.includes("weight") || line.includes("body")) {
-        const match = line.match(/Successfully saved (\d+) new.*weight/i);
-        if (match) summary.bodyWeightRecords += parseInt(match[1]);
-      }
-      if (line.includes("game") || line.includes("gaming")) {
-        const match = line.match(/Successfully saved (\d+) new.*gam/i);
-        if (match) summary.gamesSessions += parseInt(match[1]);
-      }
-      if (line.includes("activit")) {
-        const match = line.match(/Successfully saved (\d+) new.*activit/i);
-        if (match) summary.activities += parseInt(match[1]);
-      }
+    // GitHub commits: Look for "Total commits: X" in the recap
+    if (line.includes("Total commits:")) {
+      const match = line.match(/Total commits: (\d+)/);
+      if (match) summary.commits += parseInt(match[1]);
     }
 
-    // Also look for summary lines that might have different formats
-    // Like "Found X items" or "Processing X records"
+    // Oura: "Successfully saved X new sleep sessions"
     if (
-      line.includes("Found") ||
-      line.includes("Processing") ||
-      line.includes("Collected")
+      line.includes("Successfully saved") &&
+      line.includes("new sleep sessions")
     ) {
-      // Try to extract any numbers and context
-      if (line.includes("activity") || line.includes("activities")) {
-        const match = line.match(/(\d+)\s+activit(y|ies)/i);
-        if (match) summary.activities += parseInt(match[1]);
-      }
-      // Only count from specific success patterns, not "Found" lines
-      if (line.includes("workout") || line.includes("workouts")) {
-        if (!line.includes("Found")) {
-          const match = line.match(/(\d+)\s+workouts?/i);
-          if (match) summary.workouts += parseInt(match[1]);
-        }
-      }
-      // For sleep, only count from "Found X sleep sessions" line
-      if (line.includes("Found") && line.includes("sleep sessions")) {
-        const match = line.match(/Found (\d+) sleep sessions/i);
-        if (match) summary.sleepSessions += parseInt(match[1]);
-      }
-      if (line.includes("weight") && !line.includes("Found")) {
-        const match = line.match(/(\d+)\s+weight/i);
-        if (match) summary.bodyWeightRecords += parseInt(match[1]);
-      }
-      if (
-        (line.includes("game") || line.includes("gaming")) &&
-        !line.includes("Found")
-      ) {
-        const match = line.match(/(\d+)\s+(game|gaming)/i);
-        if (match) summary.gamesSessions += parseInt(match[1]);
-      }
+      const match = line.match(/Successfully saved (\d+) new sleep sessions/i);
+      if (match) summary.sleepSessions += parseInt(match[1]);
+    }
+
+    // Strava: "Successfully saved X new workouts"
+    if (line.includes("Successfully saved") && line.includes("new workouts")) {
+      const match = line.match(/Successfully saved (\d+) new workouts/i);
+      if (match) summary.workouts += parseInt(match[1]);
+    }
+
+    // Steam: "Successfully saved X gaming activities"
+    if (
+      line.includes("Successfully saved") &&
+      line.includes("gaming activities")
+    ) {
+      const match = line.match(/Successfully saved (\d+) gaming activities/i);
+      if (match) summary.gamesSessions += parseInt(match[1]);
+    }
+
+    // Withings: "Successfully saved X measurements"
+    if (line.includes("Successfully saved") && line.includes("measurements")) {
+      const match = line.match(/Successfully saved (\d+) measurements/i);
+      if (match) summary.bodyWeightRecords += parseInt(match[1]);
     }
   }
-
-  // Debug: uncomment the next line to see what output was captured
-  // console.log("🔍 DEBUG - Captured output:", output.substring(0, 500));
 
   return summary;
 }
