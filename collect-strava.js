@@ -248,6 +248,7 @@ async function main() {
 
   console.log("🏃‍♂️ Processing workout sessions:");
   let savedCount = 0;
+  let skippedCount = 0;
 
   for (const activity of activities) {
     try {
@@ -282,7 +283,30 @@ async function main() {
         start_date_local: estTimeString,
       };
 
-      await notion.createWorkoutRecord(activityWithLocalTime);
+      const result = await notion.createWorkoutRecord(activityWithLocalTime);
+      if (result === null) {
+        skippedCount++;
+        if (optionInput === "1") {
+          console.log(
+            `⏭️  Skipped ${selectedDate.toDateString()}: ${activity.name} | ${
+              activity.type
+            } | ${
+              activity.distance
+                ? (activity.distance / 1000).toFixed(2) + "km"
+                : "N/A"
+            } (already exists)`
+          );
+        } else {
+          console.log(
+            `⏭️  Skipped ${activity.name}: ${activity.type} | ${
+              activity.distance
+                ? (activity.distance / 1000).toFixed(2) + "km"
+                : "N/A"
+            } (already exists)`
+          );
+        }
+        continue;
+      }
       savedCount++;
 
       if (optionInput === "1") {
@@ -309,7 +333,13 @@ async function main() {
     }
   }
 
-  console.log(`\n✅ Week ${weekNumber}: ${savedCount} workouts saved`);
+  if (skippedCount > 0) {
+    console.log(
+      `\n✅ Week ${weekNumber}: ${savedCount} workouts saved, ${skippedCount} duplicates skipped`
+    );
+  } else {
+    console.log(`\n✅ Week ${weekNumber}: ${savedCount} workouts saved`);
+  }
 
   if (!isNonInteractive) {
     rl.close();
